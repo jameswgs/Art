@@ -9,10 +9,21 @@ fun main(args: Array<String>) {
 
 class Lines3 : PApplet() {
 
-    private val points = (0..999).map {
-        val x = 575.0f + random(5.0f)
-        val y = 575.0f + random(5.0f)
-        PVector(x, y)
+    private val points: List<PVector>
+    private var frameNumber = 0
+
+    init {
+        val seed: Long = 4
+
+        noiseSeed(seed)
+        randomSeed(seed)
+
+        points = (0..999).map {
+            val spread = 1000.0f
+            val x = 575.0f + random(spread)
+            val y = 575.0f + random(spread)
+            PVector(x, y)
+        }
     }
 
     override fun settings() {
@@ -22,23 +33,21 @@ class Lines3 : PApplet() {
     override fun setup() {
         background(255)
         stroke(0x10000000)
-        noiseSeed(2)
     }
 
     override fun draw() {
         points.forEach { point ->
             point(point.x, point.y)
             val forceScale = 1.0f
-            point.add(noiseVector(point.x, point.y) * forceScale)
+            point.add(noiseVector(point.x, point.y, frameNumber.toFloat()) * forceScale)
         }
-
+        frameNumber ++
     }
 
-    private fun noiseVector(x: Float, y: Float): PVector {
-        val distScale = 0.0007f
-        val millis = millis().toFloat() * 0.0001f
-        val noise = noise(x * distScale, y * distScale, millis)
-        val theta = noise * Math.PI.toFloat() * 20.0f
+    private fun noiseVector(x: Float, y: Float, z: Float): PVector {
+        val distScale = 0.0006f
+        val noise = noise(x * distScale, y * distScale, z * distScale)
+        val theta = noise * Math.PI.toFloat() * 50.0f
         return PVector(1.0f, 0.0f).rotate(theta)
     }
 
