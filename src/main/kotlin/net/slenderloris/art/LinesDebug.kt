@@ -15,7 +15,7 @@ class LinesDebug : PApplet() {
 
     private var frameNumber = 0
 
-    private val smokey = Smokey(this)
+    private lateinit var smokey: Smokey
 
     override fun settings() {
         fullScreen()
@@ -25,13 +25,7 @@ class LinesDebug : PApplet() {
 
         val gfx = createGraphics(width, height)
 
-        with(gfx) {
-            beginDraw()
-            background(0, 255.0f)
-            endDraw()
-        }
-
-        smokey.graphics = gfx
+        smokey = Smokey(this, gfx)
 
         val seed: Long = 5
         noiseSeed(seed)
@@ -43,7 +37,11 @@ class LinesDebug : PApplet() {
 
     override fun draw() {
         smokey.draw(frameNumber)
-        image(smokey.graphics, 0.0f, 0.0f)
+        blendMode(PConstants.REPLACE)
+        image(smokey.gfx, 0.0f, 0.0f)
+
+
+
         frameNumber++
     }
 
@@ -56,9 +54,7 @@ class LinesDebug : PApplet() {
 
 }
 
-class Smokey(private val pApplet: PApplet) {
-
-    lateinit var graphics: PGraphics
+class Smokey(private val pApplet: PApplet, val gfx: PGraphics) {
 
     private lateinit var points: List<Particle>
     private var zoom = 2.0f
@@ -71,9 +67,10 @@ class Smokey(private val pApplet: PApplet) {
 
     fun setup() {
 
-        graphics.beginDraw()
-        graphics.colorMode(PConstants.HSB, 255.0f)
-        graphics.blendMode(PConstants.ADD)
+        gfx.beginDraw()
+        gfx.background(0)
+        gfx.colorMode(PConstants.HSB, 255.0f)
+        gfx.blendMode(PConstants.ADD)
 
         points = emptyList()
 
@@ -82,12 +79,12 @@ class Smokey(private val pApplet: PApplet) {
             points += createRndParticle2()
         }
 
-        graphics.endDraw()
+        gfx.endDraw()
     }
 
     fun draw(frameNumber: Int) {
 
-        graphics.beginDraw()
+        gfx.beginDraw()
 
         val fFrameNo = frameNumber.toFloat()
 
@@ -98,7 +95,7 @@ class Smokey(private val pApplet: PApplet) {
         val noiseScale = noiseScaleStart * noiseScaleFactor
 
         points.forEach { point ->
-            graphics.stroke(point.colour)
+            gfx.stroke(point.colour)
             val pos = point.pos
             val noiseVector = pApplet.noiseVector(pos.x, pos.y, fFrameNo * timeScale, noiseScale)
             val v2 = noiseVector * forceScale
@@ -107,30 +104,30 @@ class Smokey(private val pApplet: PApplet) {
             drawLine(oldPos, pos)
         }
 
-        graphics.endDraw()
+        gfx.endDraw()
 
     }
 
     private fun createRndParticle1(): Particle {
         val x = pApplet.random(spread) - spread / 2 - 100.0f
         val y = pApplet.random(spread) - spread / 2
-        val col = graphics.color(0.0f, 255.0f, 255.0f, 3.0f)
+        val col = gfx.color(0.0f, 255.0f, 255.0f, 3.0f)
         return Particle(PVector(x, y), col)
     }
 
     private fun createRndParticle2(): Particle {
         val x = pApplet.random(spread) - spread / 2 + 100.0f
         val y = pApplet.random(spread) - spread / 2
-        val col = graphics.color(128.0f, 255.0f, 255.0f, 3.0f)
+        val col = gfx.color(128.0f, 255.0f, 255.0f, 3.0f)
         return Particle(PVector(x, y), col)
     }
 
     private fun drawLine(oldPos: PVector, pos: PVector) {
-        graphics.line(
-                oldPos.x * zoom + graphics.width / 2,
-                oldPos.y * zoom + graphics.height / 2,
-                pos.x * zoom + graphics.width / 2,
-                pos.y * zoom + graphics.height / 2
+        gfx.line(
+                oldPos.x * zoom + gfx.width / 2,
+                oldPos.y * zoom + gfx.height / 2,
+                pos.x * zoom + gfx.width / 2,
+                pos.y * zoom + gfx.height / 2
         )
     }
 
