@@ -5,7 +5,6 @@ import processing.core.PConstants
 import processing.core.PGraphics
 import processing.core.PVector
 import processing.event.KeyEvent
-import kotlin.math.sin
 
 fun main(args: Array<String>) {
     PApplet.main("net.slenderloris.art.LinesDebug")
@@ -14,7 +13,7 @@ fun main(args: Array<String>) {
 class LinesDebug : PApplet() {
 
     private var frameNumber = 0
-
+    private val noiseVectors = NoiseVectors(this)
     private lateinit var smokey: Smokey
 
     override fun settings() {
@@ -36,13 +35,28 @@ class LinesDebug : PApplet() {
     }
 
     override fun draw() {
-        smokey.draw(frameNumber)
+
+        val noiseVectorFunc = noiseVectors.get(frameNumber)
+
+        smokey.draw(noiseVectorFunc)
         blendMode(PConstants.REPLACE)
         image(smokey.gfx, 0.0f, 0.0f)
 
-
+        blendMode(PConstants.BLEND)
+        drawField(noiseVectorFunc)
 
         frameNumber++
+    }
+
+    private fun drawField(noiseVectorFunc: (Float, Float) -> PVector) {
+        stroke(255.0f, 16.0f)
+        val step = 10
+        (0..width).step(step).forEach { x ->
+            (0..height).step(step).forEach { y ->
+                val vec = noiseVectorFunc(x.toFloat(), y.toFloat()) * step.toFloat()
+                line(x.toFloat(), y.toFloat(), x + vec.x, y + vec.y)
+            }
+        }
     }
 
     override fun keyPressed(event: KeyEvent) {
@@ -54,14 +68,27 @@ class LinesDebug : PApplet() {
 
 }
 
+class NoiseVectors(private val pApplet: PApplet) {
+
+    private val noiseScaleStart = 0.0025f
+    private val timeScale = 1.0f
+    private val forceScale = 1f
+
+    fun get(frameNumber: Int): (Float, Float) -> PVector {
+
+        val fFrameNo = frameNumber.toFloat()
+
+        return { x: Float, y: Float ->
+            pApplet.noiseVector(x, y, fFrameNo * timeScale, noiseScaleStart) * forceScale
+        }
+    }
+
+}
+
 class Smokey(private val pApplet: PApplet, val gfx: PGraphics) {
 
     private lateinit var points: List<Particle>
     private var zoom = 2.0f
-    private val noiseScaleStart = 0.0025f
-    private val noiseScaleIncreaseFactor = 0.0025f
-    private val timeScale = 0.3f
-    private val forceScale = 0.25f
     private val bias = PVector(0.0f, 0.0f)
     private val spread = 150.0f
 
@@ -74,7 +101,7 @@ class Smokey(private val pApplet: PApplet, val gfx: PGraphics) {
 
         points = emptyList()
 
-        while(points.size < 10000) {
+        while (points.size < 10000) {
             points += createRndParticle1()
             points += createRndParticle2()
         }
@@ -82,25 +109,16 @@ class Smokey(private val pApplet: PApplet, val gfx: PGraphics) {
         gfx.endDraw()
     }
 
-    fun draw(frameNumber: Int) {
+    fun draw(noiseVectorFunc: (Float, Float) -> PVector) {
 
         gfx.beginDraw()
-
-        val fFrameNo = frameNumber.toFloat()
-
-        val thetaStart = -PConstants.HALF_PI
-        val noiseScaleTheta = noiseScaleIncreaseFactor * fFrameNo + thetaStart
-        val sinScale = 1.0f
-        val noiseScaleFactor = (sinScale + 1.0f) + sin(noiseScaleTheta) * sinScale
-        val noiseScale = noiseScaleStart * noiseScaleFactor
 
         points.forEach { point ->
             gfx.stroke(point.colour)
             val pos = point.pos
-            val noiseVector = pApplet.noiseVector(pos.x, pos.y, fFrameNo * timeScale, noiseScale)
-            val v2 = noiseVector * forceScale
+            val noiseVector = noiseVectorFunc(pos.x, pos.y)
             val oldPos = pos.copy()
-            pos.add(v2).add(bias)
+            pos.add(noiseVector).add(bias)
             drawLine(oldPos, pos)
         }
 
