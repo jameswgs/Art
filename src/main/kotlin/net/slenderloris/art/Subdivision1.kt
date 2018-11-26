@@ -29,7 +29,7 @@ class Subdivision1 : PApplet() {
 
         gfx = createGraphics(width, height)
 
-        subD1 = SubD1(gfx)
+        subD1 = SubD1(gfx, this)
     }
 
     override fun draw() {
@@ -53,13 +53,14 @@ class Subdivision1 : PApplet() {
 
 }
 
-class SubD1(private val gfx: PGraphics) {
+class SubD1(private val gfx: PGraphics, private val pApplet: PApplet) {
 
     private var shapes = emptyList<Shape>()
 
     init {
         with(gfx) {
             shapes = listOf(makeRect(50.0f, 50.0f, width.toFloat()-100.0f, height.toFloat()-100.0f))
+            colorMode(PConstants.HSB, 1.0f)
         }
     }
 
@@ -73,21 +74,30 @@ class SubD1(private val gfx: PGraphics) {
     }
 
     fun draw() {
-
         gfx.draw {
+            background(0)
             stroke(0xFFFF0000.toInt())
-            strokeWeight(2.0f)
-            fill(0xFF00FF00.toInt())
+            strokeWeight(4.0f)
             shapes.forEach { shape ->
-                shape.edges().forEach { edge ->
-                    line(edge.first.x, edge.first.y, edge.second.x, edge.second.y)
+                fill(shape.col)
+                beginShape()
+                shape.verts.forEach {
+                    vertex(it.x, it.y)
                 }
+                endShape()
             }
         }
     }
 
     fun subDivide() {
-        shapes = shapes.flatMap { it.subDivide() }
+        shapes = shapes.flatMap {
+            val a = pApplet.random(0.45f, 0.55f)
+            val b = pApplet.random(0.45f, 0.55f)
+            gfx.colorMode(PConstants.HSB, 1.0f)
+            val ca = gfx.color(pApplet.random(1.0f), 1.0f, 1.0f)
+            val cb = gfx.color(pApplet.random(1.0f), 1.0f, 1.0f)
+            it.subDivideAB(a, b, ca, cb)
+        }
     }
 
 }
@@ -115,8 +125,27 @@ private fun Shape.subDivide(): List<Shape> {
     return listOf(Shape(v1), Shape(v2))
 }
 
+private fun Shape.subDivideAB(a: Float, b: Float, ca: Int, cb: Int): List<Shape> {
+    val edges = edges()
+    val numberedEdges = edges.mapIndexed { index, edge -> index to edge }
+    val longest = numberedEdges.sortedBy { it.second.mag() }.last()
+    val opposite = numberedEdges[(longest.first + (edges.size / 2)).rem(edges.size)]
+    val longestC = longest.second.between(a)
+    val oppositeC = opposite.second.between(b)
+
+    val newFirstIndex = (longest.first+1).rem(verts.size)
+    val reOrderedVerts = verts.subList(newFirstIndex, verts.size) + verts.subList(0, newFirstIndex)
+    val v1 = reOrderedVerts.subList(0, verts.size/2) + oppositeC + longestC
+    val v2 = reOrderedVerts.subList(verts.size/2, verts.size) + longestC + oppositeC
+    return listOf(Shape(v1, ca), Shape(v2, cb))
+}
+
 private fun Edge.center(): PVector {
     return first.copy().add(second.copy().sub(first).mult(0.5f))
+}
+
+private fun Edge.between(f: Float): PVector {
+    return first.copy().add(second.copy().sub(first).mult(f))
 }
 
 private fun Edge.mag(): Float {
@@ -124,7 +153,7 @@ private fun Edge.mag(): Float {
 }
 
 
-data class Shape(val verts: List<PVector>) {
+data class Shape(val verts: List<PVector>, val col: Int = 0) {
 
     fun edges(): List<Edge> {
         return verts.zip(verts.subList(1, verts.size)) + (verts.last() to verts.first())
